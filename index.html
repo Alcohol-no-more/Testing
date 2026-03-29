@@ -2,46 +2,424 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>全螢幕測試</title>
-    <link rel="manifest" href="./manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Word Passport | 拼字護照</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
+        /* --- 基礎設定 --- */
+        :root { 
+            --p-width: 320px; 
+            --glass-bg: rgba(255, 255, 255, 0.2);
+            --glass-border: rgba(255, 255, 255, 0.3);
+        }
+        
+        body, html { 
+            margin: 0; padding: 0; height: 100%; 
+            transition: background 0.8s cubic-bezier(0.2, 1, 0.3, 1); 
+            overflow: hidden; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* --- 1. 封面：空靈玻璃風格 (Glassmorphism) --- */
+        #setup-screen {
+            position: fixed; inset: 0; z-index: 5000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: linear-gradient(135deg, #8ec5fc 0%, #e0c3fc 100%);
+            transition: opacity 0.5s;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            padding: 40px;
+            border-radius: 24px;
+            text-align: center;
+            width: var(--p-width);
             box-sizing: border-box;
         }
-        body, html {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: #fff;
-            font-family: sans-serif;
-            /* 關鍵：讓背景填滿但內容不被遮擋 */
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: env(safe-area-inset-left);
-            padding-right: env(safe-area-inset-right);
+
+        .setup-logo { 
+            font-size: 42px; font-family: "Times New Roman", serif; font-style: italic; 
+            margin: 0 0 30px 0; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .box {
-            text-align: center;
-            padding: 40px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 20px;
+
+        .level-btn { 
+            width: 100%; padding: 12px; margin: 6px 0;
+            border: 1px solid rgba(255, 255, 255, 0.4); 
+            background: rgba(255, 255, 255, 0.1); 
+            color: #fff; border-radius: 12px; 
+            cursor: pointer; font-size: 13px; letter-spacing: 2px; 
+            transition: 0.3s;
+        }
+        .level-btn:hover { background: rgba(255, 255, 255, 0.9); color: #8ec5fc; }
+
+        /* --- 2. 遊戲主畫面 --- */
+        #game-view { 
+            display: none; width: 100%; height: 100%; 
+            flex-direction: column; justify-content: center; align-items: center; 
+            position: relative; z-index: 10;
+        }
+        #bg-overlay { position: absolute; inset: 0; z-index: -1; transition: 0.8s; }
+
+        .game-content { width: var(--p-width); text-align: center; }
+
+        #level-indicator { 
+            font-size: 11px; font-weight: 800; letter-spacing: 4px; 
+            margin-bottom: 25px; opacity: 0.7; text-transform: uppercase; 
+        }
+        
+        #hint-text { 
+            font-size: 15px; margin-bottom: 15px; height: 45px; line-height: 1.5; 
+            transition: 0.5s; opacity: 0; transform: translateY(10px); 
+        }
+        #hint-text.visible { opacity: 1; transform: translateY(0); }
+
+        #scramble-box {
+            width: 100%; box-sizing: border-box;
+            font-size: 32px; font-weight: 900; letter-spacing: 8px; margin-bottom: 20px;
+            padding: 25px 0; border-radius: 16px; transition: 0.5s; 
+            display: flex; justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.05);
+        }
+
+        #pw-input {
+            width: 100%; box-sizing: border-box;
+            padding: 20px; font-size: 24px; text-align: center; border: none;
+            outline: none; letter-spacing: 8px; border-radius: 16px; text-transform: uppercase;
+            transition: 0.3s; box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .controls { 
+            margin-top: 30px; display: flex; justify-content: space-between; 
+            align-items: center; width: 100%; 
+        }
+        .skip-btn { 
+            background: none; border: none; font-size: 11px; letter-spacing: 2px; 
+            cursor: pointer; opacity: 0.5; transition: 0.3s; color: inherit; 
+            text-decoration: underline; 
+        }
+        .skip-btn:hover { opacity: 1; }
+        #correct-tally { font-size: 11px; letter-spacing: 1px; opacity: 0.6; }
+
+        .shake { animation: shake 0.4s both; }
+        @keyframes shake { 
+            0%,100%{transform:translateX(0)} 
+            20%{transform:translateX(-10px)} 
+            60%{transform:translateX(10px)} 
+        }
+
+        /* --- 3. 結算畫面 --- */
+        #end-screen { 
+            position: fixed; inset: 0; background: #fff; z-index: 6000; 
+            display: none; flex-direction: column; justify-content: center; 
+            align-items: center; text-align: center; padding: 20px;
+        }
+        .end-btn { 
+            margin-top: 40px; padding: 15px 40px; background: #000; color: #fff; 
+            border: none; border-radius: 30px; cursor: pointer; letter-spacing: 2px; 
         }
     </style>
 </head>
 <body>
-    <div class="box">
-        <p>全螢幕測試</p>
-        <p id="info"></p>
+
+    <div id="setup-screen">
+        <div class="glass-card">
+            <p style="font-size:10px; letter-spacing:5px; color:#fff; margin-bottom:10px; opacity:0.8;">VISA APPLICATION</p>
+            <h1 class="setup-logo">Word Passport</h1>
+            <button class="level-btn" onclick="preStart(5)">5 STAMPS</button>
+            <button class="level-btn" onclick="preStart(10)">10 STAMPS</button>
+            <button class="level-btn" onclick="preStart(15)">15 STAMPS</button>
+            <button class="level-btn" onclick="preStart(30)">30 STAMPS</button>
+            <button class="level-btn" onclick="preStart(50)">50 STAMPS</button>
+            <p style="font-size:9px; color:#fff; opacity:0.5; margin-top:20px; letter-spacing:1px;">80% ACCURACY REQUIRED TO PASS</p>
+        </div>
     </div>
+
+    <div id="game-view">
+        <div id="bg-overlay"></div>
+        <div class="game-content">
+            <div id="level-indicator">VISA NO. 1 / --</div>
+            <div id="hint-text">這是提示內容</div>
+            <div id="scramble-box">W O R D</div>
+            <input type="text" id="pw-input" placeholder="TYPE HERE" autocomplete="off">
+            <div class="controls">
+                <button class="skip-btn" onclick="skipLevel()">SKIP THIS STAMP</button>
+                <div id="correct-tally">SOLVED: 0</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="end-screen">
+        <p id="end-subtitle" style="letter-spacing:8px; color:#aaa; font-size:12px;"></p>
+        <h1 id="end-title" style="font-family:serif; font-size:45px; margin: 10px 0;"></h1>
+        <p id="end-msg" style="color:#666; line-height:1.6; max-width: 300px;"></p>
+        <button class="end-btn" onclick="resetToHome()">PLAY AGAIN</button>
+    </div>
+
     <script>
-        document.getElementById('info').innerText = 
-            `螢幕高度: ${window.innerHeight}px`;
+        // ─────────────────────────────────────────
+        // 題庫
+        // ─────────────────────────────────────────
+        const wordDb = [
+            {w:"APPLE",  h:"圓潤紅潤，咬下清脆多汁的常見果實"},
+            {w:"BREAD",  h:"麥香四溢，早晨餐桌上的鬆軟主食"},
+            {w:"COFFEE", h:"深色液體，提神醒腦的微苦香氣"},
+            {w:"DREAM",  h:"閉上雙眼，在大腦中演出的虛幻故事"},
+            {w:"EARTH",  h:"我們腳下，這顆湛藍旋轉的行星"},
+            {w:"FLOWER", h:"色彩繽紛，在大地綻放的植物芬芳"},
+            {w:"GLASS",  h:"透明脆弱，可以透過它看見世界的材質"},
+            {w:"HAPPY",  h:"嘴角上揚，內心充滿陽光的感覺"},
+            {w:"ISLAND", h:"被水環繞，孤獨而美麗的陸地"},
+            {w:"JACKET", h:"冷風吹來時，披在身上的第一層溫暖"},
+            {w:"KNIFE",  h:"鋒利鋼片，在廚房切割食材的工具"},
+            {w:"LEMON",  h:"鮮黃外皮，讓臉部糾結的極致酸味"},
+            {w:"MUSIC",  h:"流動耳畔，由音符編織的情緒波浪"},
+            {w:"NIGHT",  h:"星辰點點，太陽下山後的寂靜時刻"},
+            {w:"OCEAN",  h:"無邊無際，翻湧著浪花的鹹味水域"},
+            {w:"PAPER",  h:"纖薄平整，乘載思想與墨水的載體"},
+            {w:"QUEEN",  h:"頭戴皇冠，象徵權威與優雅的女性"},
+            {w:"RIVER",  h:"永不停歇，在大地奔流的長長水帶"},
+            {w:"SMILE",  h:"無聲語言，傳遞友善的最美表情"},
+            {w:"TABLE",  h:"穩重支撐，我們用餐或工作的平台"},
+            {w:"WATCH",  h:"規律滴答，鎖在手腕上的時間刻度"},
+            {w:"CAMERA", h:"按下快門，將瞬間凝固成永恆的機器"},
+            {w:"BRIDGE", h:"跨越障礙，連接兩岸的宏偉建築"},
+            {w:"WINDOW", h:"牆上透明，引進光線與風景的開口"},
+            {w:"PIANO",  h:"黑白琴鍵，彈奏出清脆旋律的樂器"},
+            {w:"SCHOOL", h:"朗朗讀書，充滿青春與知識的場所"},
+            {w:"BOTTLE", h:"圓柱容器，盛裝水或美酒的載體"},
+            {w:"CLOUD",  h:"天空白絮，由水蒸氣聚集成的情緒"},
+            {w:"DANGER", h:"紅燈閃爍，提醒你必須遠離的風險"},
+            {w:"FOREST", h:"鬱鬱蔥蔥，充滿各種樹木與生物的綠境"}
+        ];
+
+        // ─────────────────────────────────────────
+        // 全域狀態
+        // ─────────────────────────────────────────
+        let totalLevels  = 0;
+        let currentIdx   = 0;
+        let solvedCount  = 0;
+        let errorCount   = 0;
+        let sessionWords = [];
+        let isAnimating  = false;   // Bug #4 修復：鎖定 shake 動畫期間的重複輸入
+        let gameActive   = false;   // Bug #2 修復：防止遊戲結束後 input 仍觸發
+
+        // ─────────────────────────────────────────
+        // 工具：打亂字母，確保結果不等於原單字 (Bug #3)
+        // ─────────────────────────────────────────
+        function scrambleWord(word) {
+            if (word.length <= 1) return word;
+            let result;
+            let attempts = 0;
+            do {
+                result = word.split('').sort(() => Math.random() - 0.5).join('');
+                attempts++;
+            } while (result === word && attempts < 20);
+            // 若隨機仍失敗（極端情況），手動位移第一個字母
+            if (result === word) {
+                result = word[1] + word.slice(2) + word[0];
+            }
+            return result.split('').join(' ');
+        }
+
+        // ─────────────────────────────────────────
+        // 開始遊戲
+        // ─────────────────────────────────────────
+        function preStart(num) {
+            // 隨機挑選單字
+            const shuffled = [...wordDb].sort(() => Math.random() - 0.5);
+            sessionWords = shuffled.slice(0, num);
+
+            // Bug #1 修復：以實際可用題數為準，防止超出題庫導致 undefined crash
+            totalLevels = sessionWords.length;
+
+            currentIdx  = 0;
+            solvedCount = 0;
+            errorCount  = 0;
+            isAnimating = false;
+            gameActive  = true;
+
+            const setup = document.getElementById('setup-screen');
+            setup.style.opacity = '0';
+            setTimeout(() => {
+                setup.style.display = 'none';
+                document.getElementById('game-view').style.display = 'flex';
+                loadLevel();
+            }, 500);
+        }
+
+        // ─────────────────────────────────────────
+        // 載入關卡
+        // ─────────────────────────────────────────
+        function loadLevel() {
+            const data = sessionWords[currentIdx];
+            errorCount  = 0;
+            isAnimating = false;
+
+            applyUIStyle();
+
+            document.getElementById('level-indicator').innerText =
+                `VISA NO. ${currentIdx + 1} / ${totalLevels}`;
+            document.getElementById('correct-tally').innerText =
+                `SOLVED: ${solvedCount}`;
+            document.getElementById('scramble-box').innerText =
+                scrambleWord(data.w);   // Bug #3 修復：使用安全亂序函式
+
+            const hint = document.getElementById('hint-text');
+            hint.innerText = data.h;
+            hint.classList.remove('visible');
+
+            const input = document.getElementById('pw-input');
+            input.value       = '';
+            input.placeholder = `${data.w.length} LETTERS`;
+
+            // Bug #8 修復：短暫延遲後再 focus，避免 iOS 鍵盤干擾動畫
+            setTimeout(() => input.focus(), 100);
+        }
+
+        // ─────────────────────────────────────────
+        // 套用隨機 UI 風格
+        // ─────────────────────────────────────────
+        function applyUIStyle() {
+            const h      = Math.floor(Math.random() * 360);
+            const isDark = Math.random() > 0.5;
+            const radius = [0, 12, 50][Math.floor(Math.random() * 3)];
+
+            // 15% 機率觸發圖片背景
+            if (Math.random() > 0.85) {
+                const imgID = Math.floor(Math.random() * 1000);
+                document.body.style.background =
+                    `url(https://picsum.photos/seed/${imgID}/1200/800) center/cover`;
+                document.getElementById('bg-overlay').style.background =
+                    'rgba(0,0,0,0.4)';
+                document.body.style.color = '#fff';
+            } else {
+                document.body.style.background = isDark
+                    ? `hsl(${h}, 20%, 12%)`
+                    : `hsl(${h}, 20%, 96%)`;
+                document.getElementById('bg-overlay').style.background =
+                    'transparent';
+                document.body.style.color = isDark
+                    ? `hsl(${h}, 50%, 85%)`
+                    : `hsl(${h}, 20%, 20%)`;
+            }
+
+            const box = document.getElementById('scramble-box');
+            box.style.borderRadius = radius + 'px';
+            box.style.background   = isDark
+                ? 'rgba(255,255,255,0.1)'
+                : 'rgba(0,0,0,0.03)';
+
+            const input = document.getElementById('pw-input');
+            input.style.borderRadius = radius + 'px';
+            input.style.background   = isDark ? 'rgba(255,255,255,0.05)' : '#fff';
+            input.style.color        = isDark ? '#fff' : '#000';
+        }
+
+        // ─────────────────────────────────────────
+        // Skip / 進度檢查 / 結算
+        // ─────────────────────────────────────────
+        function skipLevel() {
+            if (!gameActive) return;
+            currentIdx++;
+            checkProgress();
+        }
+
+        function checkProgress() {
+            if (currentIdx < totalLevels) {
+                loadLevel();
+            } else {
+                finishGame();
+            }
+        }
+
+        function finishGame() {
+            gameActive = false;   // Bug #2 修復：停用 input 監聽邏輯
+            document.getElementById('game-view').style.display = 'none';
+
+            const endScreen = document.getElementById('end-screen');
+            const passMark  = Math.ceil(totalLevels * 0.8);
+            endScreen.style.display = 'flex';
+
+            if (solvedCount >= passMark) {
+                document.getElementById('end-subtitle').innerText = "ODYSSEY COMPLETE";
+                document.getElementById('end-title').innerText   = "Congratulations.";
+                document.getElementById('end-msg').innerHTML     =
+                    `Your passport is fully stamped.<br>
+                     Successfully solved <b>${solvedCount}</b> out of ${totalLevels}.`;
+            } else {
+                document.getElementById('end-subtitle').innerText = "ENTRY DENIED";
+                document.getElementById('end-title').innerText   = "Try Again.";
+                document.getElementById('end-msg').innerHTML     =
+                    `You only solved <b>${solvedCount}</b> stamps. 
+                     You need at least ${passMark} to pass the customs.`;
+            }
+        }
+
+        // ─────────────────────────────────────────
+        // 重置回首頁 (Bug #5 修復：完整清空所有狀態)
+        // ─────────────────────────────────────────
+        function resetToHome() {
+            document.getElementById('end-screen').style.display   = 'none';
+            document.getElementById('game-view').style.display    = 'none';
+            document.getElementById('setup-screen').style.display = 'flex';
+            document.getElementById('setup-screen').style.opacity = '1';
+
+            // 清空 input 殘留內容
+            const input   = document.getElementById('pw-input');
+            input.value   = '';
+
+            // 重置所有狀態變數
+            currentIdx   = 0;
+            solvedCount  = 0;
+            errorCount   = 0;
+            totalLevels  = 0;
+            sessionWords = [];
+            isAnimating  = false;
+            gameActive   = false;
+        }
+
+        // ─────────────────────────────────────────
+        // 輸入監聽（含全部 Bug 修復）
+        // ─────────────────────────────────────────
+        document.getElementById('pw-input').addEventListener('input', function () {
+
+            // Bug #2 修復：遊戲未啟動或已結束時直接忽略
+            if (!gameActive) return;
+
+            // Bug #4 修復：shake 動畫執行中忽略輸入
+            if (isAnimating) return;
+
+            const val    = this.value.toUpperCase().trim();
+            const target = sessionWords[currentIdx].w;
+
+            if (val.length === target.length) {
+                if (val === target) {
+                    // ✅ 答對
+                    solvedCount++;
+                    currentIdx++;
+                    checkProgress();
+                } else {
+                    // ❌ 答錯
+                    errorCount++;
+                    isAnimating = true;
+                    this.classList.add('shake');
+
+                    setTimeout(() => {
+                        this.classList.remove('shake');
+                        this.value  = '';
+                        isAnimating = false;
+                    }, 400);
+
+                    if (errorCount >= 3) {
+                        document.getElementById('hint-text').classList.add('visible');
+                    }
+                }
+            }
+        });
     </script>
 </body>
 </html>
