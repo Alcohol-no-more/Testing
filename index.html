@@ -5,39 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <meta name="theme-color" content="#ff6b6b">
-    
-    <title>終極物理鎖死版</title>
+    <title>Word Passport 級全螢幕</title>
     
     <style>
-        /* 1. 物理鎖死：直接把 HTML 和 Body 釘死在螢幕四個角 */
+        /* 核心修復區：徹底解決 iOS 高度 Bug */
         html, body {
-            position: fixed; /* 核心：禁止任何原生滾動與彈性邊界 */
-            top: 0;
-            left: 0;
-            width: 100vw; /* 絕對物理寬度 */
-            height: 100vh; /* 在 iOS 中，100vh 剛好等於包含瀏海的完整硬體高度 */
             margin: 0;
             padding: 0;
-            overflow: hidden; 
+            width: 100%;
             
-            /* 把漸層色直接灌進這個被釘死的畫布裡 */
+            /* 1. 基本高度 */
+            height: 100%; 
+            /* 2. 備用高度 */
+            min-height: 100vh;
+            /* 3. 蘋果專屬：強制填滿包含安全區的所有可用空間 */
+            min-height: -webkit-fill-available; 
+            
+            overflow: hidden; /* 防止畫面上滑出現白底 */
+            
+            /* 秘訣：把最底層的顏色直接寫在 body 上！這樣就算露餡也是漸層色 */
             background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
-            background-color: #ff6b6b; /* 買雙重保險 */
-        }
-
-        /* 2. 內容層：在釘死的畫布裡，安分地避開危險區 */
-        #setup-screen {
-            position: absolute; /* 相對於釘死的 body 定位 */
-            inset: 0; /* 等同於 top/bottom/left/right 都是 0 */
+            
             display: flex;
             justify-content: center;
             align-items: center;
-            
-            /* 讓裡面的東西不要撞到瀏海和底條 */
+            font-family: -apple-system, sans-serif;
+        }
+
+        /* 這是未來你要放 Unsplash 照片的圖層 */
+        #bg-image {
+            position: absolute; /* 改用 absolute，讓它完全貼合 body 的尺寸 */
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-size: cover;
+            background-position: center;
+            z-index: 1;
+            /* 這裡先設定透明度為 0，這樣你才能看到 body 的漸層色 */
+            opacity: 0; 
+        }
+
+        /* 內容層：負責避開瀏海 */
+        #setup-screen {
+            position: relative;
+            z-index: 10;
+            width: 100%;
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
+            display: flex;
+            justify-content: center;
         }
 
         .box {
@@ -49,17 +63,18 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 24px;
             color: #fff;
-            font-family: -apple-system, sans-serif;
         }
     </style>
 </head>
 <body>
+    
+    <div id="bg-image"></div>
 
     <div id="setup-screen">
         <div class="box">
-            <h2 style="letter-spacing: 2px;">物理鎖死測試</h2>
+            <h2 style="letter-spacing: 2px;">完美全螢幕</h2>
             <p style="margin-top: 10px; font-size: 14px; opacity: 0.8;">
-                絕對不會再有白邊或黑邊
+                Word Passport 的底層邏輯
             </p>
         </div>
     </div>
