@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>全螢幕測試</title>
+    <link rel="manifest" href="./manifest.json">
+    <style>
+        body, html {
+            margin: 0; padding: 0;
+            height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            font-family: sans-serif;
+        }
+        .box {
+            text-align: center;
+            padding: 40px;
+            border: 1px solid #fff;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <p>全螢幕測試</p>
+        <p id="info"></p>
+    </div>
+    <script>
+        document.getElementById('info').innerText = 
+            `螢幕高度: ${window.innerHeight}px`;
+    </script>
+</body>
+</html>
