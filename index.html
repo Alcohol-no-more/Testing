@@ -1,83 +1,268 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Fullscreen Test</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Word Passport 級全螢幕</title>
-    
+    <meta name="apple-mobile-web-app-title" content="FS Test">
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="./manifest.json">
     <style>
-        /* 核心修復區：徹底解決 iOS 高度 Bug */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --sat: env(safe-area-inset-top, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+            --sal: env(safe-area-inset-left, 0px);
+            --sar: env(safe-area-inset-right, 0px);
+        }
+
         html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            
-            /* 1. 基本高度 */
-            height: 100%; 
-            /* 2. 備用高度 */
-            min-height: 100vh;
-            /* 3. 蘋果專屬：強制填滿包含安全區的所有可用空間 */
-            min-height: -webkit-fill-available; 
-            
-            overflow: hidden; /* 防止畫面上滑出現白底 */
-            
-            /* 秘訣：把最底層的顏色直接寫在 body 上！這樣就算露餡也是漸層色 */
-            background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
-            
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, sans-serif;
+            overscroll-behavior: none;
+        }
+
+        /* 背景圖：填滿整個螢幕包含安全區外 */
+        .bg {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('https://picsum.photos/seed/test123/1200/800') center/cover no-repeat;
+            background-color: #333;
+            z-index: 0;
+        }
+
+        /* 半透明遮罩讓文字可讀 */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1;
+        }
+
+        /* 安全區邊界視覺化 */
+        .safe-area-top {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: var(--sat);
+            background: rgba(255,0,0,0.3);
+            border-bottom: 2px dashed red;
+            z-index: 10;
+        }
+        .safe-area-bottom {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: var(--sab);
+            background: rgba(0,100,255,0.3);
+            border-top: 2px dashed blue;
+            z-index: 10;
+        }
+
+        /* 四個角落標記 */
+        .corner {
+            position: fixed;
+            width: 30px; height: 30px;
+            z-index: 10;
+        }
+        .corner-tl { top: 0; left: 0; border-top: 3px solid lime; border-left: 3px solid lime; }
+        .corner-tr { top: 0; right: 0; border-top: 3px solid lime; border-right: 3px solid lime; }
+        .corner-bl { bottom: 0; left: 0; border-bottom: 3px solid lime; border-left: 3px solid lime; }
+        .corner-br { bottom: 0; right: 0; border-bottom: 3px solid lime; border-right: 3px solid lime; }
+
+        /* 內容區：在安全區內 */
+        .content {
+            position: relative;
+            z-index: 5;
+            height: 100%;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-family: -apple-system, sans-serif;
-        }
-
-        /* 這是未來你要放 Unsplash 照片的圖層 */
-        #bg-image {
-            position: absolute; /* 改用 absolute，讓它完全貼合 body 的尺寸 */
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-size: cover;
-            background-position: center;
-            z-index: 1;
-            /* 這裡先設定透明度為 0，這樣你才能看到 body 的漸層色 */
-            opacity: 0; 
-        }
-
-        /* 內容層：負責避開瀏海 */
-        #setup-screen {
-            position: relative;
-            z-index: 10;
-            width: 100%;
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
-            display: flex;
-            justify-content: center;
-        }
-
-        .box {
-            text-align: center;
-            padding: 40px;
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 24px;
             color: #fff;
+            padding-top: var(--sat);
+            padding-bottom: var(--sab);
+            padding-left: var(--sal);
+            padding-right: var(--sar);
+        }
+
+        .card {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            padding: 30px;
+            width: 300px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 20px;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .label { opacity: 0.6; }
+        .value { font-weight: bold; }
+
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        .status.pass { background: rgba(0,200,100,0.3); border: 1px solid rgba(0,200,100,0.5); }
+        .status.fail { background: rgba(255,50,50,0.3); border: 1px solid rgba(255,50,50,0.5); }
+
+        .legend {
+            margin-top: 20px;
+            font-size: 9px;
+            opacity: 0.5;
+            letter-spacing: 1px;
+            line-height: 1.8;
         }
     </style>
 </head>
 <body>
-    
-    <div id="bg-image"></div>
 
-    <div id="setup-screen">
-        <div class="box">
-            <h2 style="letter-spacing: 2px;">完美全螢幕</h2>
-            <p style="margin-top: 10px; font-size: 14px; opacity: 0.8;">
-                Word Passport 的底層邏輯
-            </p>
+    <div class="bg"></div>
+    <div class="overlay"></div>
+
+    <!-- 安全區視覺化 -->
+    <div class="safe-area-top"></div>
+    <div class="safe-area-bottom"></div>
+
+    <!-- 四角標記：如果看得到綠角 = 背景到了螢幕邊緣 -->
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="content">
+        <div class="card">
+            <h1>📐 FULLSCREEN TEST</h1>
+
+            <div class="info-row">
+                <span class="label">MODE</span>
+                <span class="value" id="v-mode">—</span>
+            </div>
+            <div class="info-row">
+                <span class="label">SAFE TOP</span>
+                <span class="value" id="v-top">—</span>
+            </div>
+            <div class="info-row">
+                <span class="label">SAFE BOTTOM</span>
+                <span class="value" id="v-bottom">—</span>
+            </div>
+            <div class="info-row">
+                <span class="label">WINDOW</span>
+                <span class="value" id="v-window">—</span>
+            </div>
+            <div class="info-row">
+                <span class="label">SCREEN</span>
+                <span class="value" id="v-screen">—</span>
+            </div>
+            <div class="info-row">
+                <span class="label">BG VISIBLE</span>
+                <span class="value" id="v-bg">—</span>
+            </div>
+
+            <div class="status" id="v-status">CHECKING...</div>
+
+            <div class="legend">
+                🟢 GREEN CORNERS = EDGE REACHED<br>
+                🔴 RED ZONE = TOP SAFE AREA<br>
+                🔵 BLUE ZONE = BOTTOM SAFE AREA<br>
+                PHOTO SHOULD BE BEHIND ALL ZONES
+            </div>
         </div>
     </div>
 
+    <script>
+        // 清除舊的 service worker 和快取
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(rs => {
+                rs.forEach(r => r.unregister());
+                console.log('All SW unregistered');
+            });
+            if (window.caches) {
+                caches.keys().then(names => {
+                    names.forEach(n => caches.delete(n));
+                    console.log('All caches deleted');
+                });
+            }
+        }
+
+        function measure() {
+            const root = document.documentElement;
+            const cs   = getComputedStyle(root);
+
+            // 讀取 safe area 數值
+            const sat = cs.getPropertyValue('--sat').trim() || '0px';
+            const sab = cs.getPropertyValue('--sab').trim() || '0px';
+
+            // 解析數值
+            const topVal    = parseFloat(sat) || 0;
+            const bottomVal = parseFloat(sab) || 0;
+
+            // 判斷模式
+            const isPWA = window.navigator.standalone === true;
+            const mode  = isPWA ? 'PWA (STANDALONE)' : 'SAFARI BROWSER';
+
+            // 判斷是否全螢幕生效
+            const screenH = screen.height;
+            const windowH = window.innerHeight;
+            const bgReachesEdge = topVal > 0;
+
+            // 填入數值
+            document.getElementById('v-mode').textContent   = mode;
+            document.getElementById('v-top').textContent     = sat;
+            document.getElementById('v-bottom').textContent  = sab;
+            document.getElementById('v-window').textContent  = `${window.innerWidth} × ${windowH}`;
+            document.getElementById('v-screen').textContent  = `${screen.width} × ${screenH}`;
+
+            // 判斷背景是否延伸到安全區外
+            const status = document.getElementById('v-status');
+            const bgText = document.getElementById('v-bg');
+
+            if (bgReachesEdge) {
+                bgText.textContent  = '✅ YES';
+                status.textContent  = '✅ FULLSCREEN WORKING';
+                status.className    = 'status pass';
+            } else if (isPWA) {
+                bgText.textContent  = '⚠️ PARTIAL';
+                status.textContent  = '⚠️ PWA BUT NO SAFE AREA';
+                status.className    = 'status fail';
+            } else {
+                bgText.textContent  = '❌ NO';
+                status.textContent  = '❌ NOT FULLSCREEN (expected in Safari)';
+                status.className    = 'status fail';
+            }
+        }
+
+        // 初始量測 + 持續更新
+        measure();
+        setInterval(measure, 1000);
+
+        // 防止 iOS 橡皮筋
+        document.addEventListener('touchmove', e => {
+            if (e.target.closest('.card')) return;
+            e.preventDefault();
+        }, { passive: false });
+    </script>
 </body>
 </html>
