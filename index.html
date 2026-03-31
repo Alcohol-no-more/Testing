@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Fullscreen Test</title>
+    <title>Fullscreen Test v2</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="FS Test">
@@ -19,6 +19,10 @@
             --sar: env(safe-area-inset-right, 0px);
         }
 
+        html {
+            background: #000;
+        }
+
         html, body {
             height: 100%;
             overflow: hidden;
@@ -26,19 +30,27 @@
             overscroll-behavior: none;
         }
 
-        /* 背景圖：填滿整個螢幕包含安全區外 */
+        /* ★ 修正：背景用 100vh 而非 inset:0 */
         .bg {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: url('https://picsum.photos/seed/test123/1200/800') center/cover no-repeat;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            /* 再加一層保險：往下多延伸 */
+            min-height: calc(100vh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+            background: url('https://picsum.photos/seed/test456/1200/800') center/cover no-repeat;
             background-color: #333;
             z-index: 0;
         }
 
-        /* 半透明遮罩讓文字可讀 */
         .overlay {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            min-height: calc(100vh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
             background: rgba(0,0,0,0.4);
             z-index: 1;
         }
@@ -61,7 +73,6 @@
             z-index: 10;
         }
 
-        /* 四個角落標記 */
         .corner {
             position: fixed;
             width: 30px; height: 30px;
@@ -72,7 +83,6 @@
         .corner-bl { bottom: 0; left: 0; border-bottom: 3px solid lime; border-left: 3px solid lime; }
         .corner-br { bottom: 0; right: 0; border-bottom: 3px solid lime; border-right: 3px solid lime; }
 
-        /* 內容區：在安全區內 */
         .content {
             position: relative;
             z-index: 5;
@@ -99,11 +109,7 @@
             text-align: center;
         }
 
-        h1 {
-            font-size: 20px;
-            letter-spacing: 3px;
-            margin-bottom: 20px;
-        }
+        h1 { font-size: 20px; letter-spacing: 3px; margin-bottom: 20px; }
 
         .info-row {
             display: flex;
@@ -142,11 +148,9 @@
     <div class="bg"></div>
     <div class="overlay"></div>
 
-    <!-- 安全區視覺化 -->
     <div class="safe-area-top"></div>
     <div class="safe-area-bottom"></div>
 
-    <!-- 四角標記：如果看得到綠角 = 背景到了螢幕邊緣 -->
     <div class="corner corner-tl"></div>
     <div class="corner corner-tr"></div>
     <div class="corner corner-bl"></div>
@@ -154,7 +158,7 @@
 
     <div class="content">
         <div class="card">
-            <h1>📐 FULLSCREEN TEST</h1>
+            <h1>📐 FULLSCREEN TEST v2</h1>
 
             <div class="info-row">
                 <span class="label">MODE</span>
@@ -177,8 +181,12 @@
                 <span class="value" id="v-screen">—</span>
             </div>
             <div class="info-row">
-                <span class="label">BG VISIBLE</span>
-                <span class="value" id="v-bg">—</span>
+                <span class="label">BG SIZE</span>
+                <span class="value" id="v-bgsize">—</span>
+            </div>
+            <div class="info-row">
+                <span class="label">NO WHITE GAP</span>
+                <span class="value" id="v-gap">—</span>
             </div>
 
             <div class="status" id="v-status">CHECKING...</div>
@@ -187,78 +195,68 @@
                 🟢 GREEN CORNERS = EDGE REACHED<br>
                 🔴 RED ZONE = TOP SAFE AREA<br>
                 🔵 BLUE ZONE = BOTTOM SAFE AREA<br>
-                PHOTO SHOULD BE BEHIND ALL ZONES
+                NO WHITE SHOULD BE VISIBLE
             </div>
         </div>
     </div>
 
     <script>
-        // 清除舊的 service worker 和快取
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(rs => {
                 rs.forEach(r => r.unregister());
-                console.log('All SW unregistered');
             });
             if (window.caches) {
                 caches.keys().then(names => {
                     names.forEach(n => caches.delete(n));
-                    console.log('All caches deleted');
                 });
             }
         }
 
         function measure() {
             const root = document.documentElement;
-            const cs   = getComputedStyle(root);
-
-            // 讀取 safe area 數值
+            const cs = getComputedStyle(root);
             const sat = cs.getPropertyValue('--sat').trim() || '0px';
             const sab = cs.getPropertyValue('--sab').trim() || '0px';
-
-            // 解析數值
-            const topVal    = parseFloat(sat) || 0;
+            const topVal = parseFloat(sat) || 0;
             const bottomVal = parseFloat(sab) || 0;
-
-            // 判斷模式
             const isPWA = window.navigator.standalone === true;
-            const mode  = isPWA ? 'PWA (STANDALONE)' : 'SAFARI BROWSER';
 
-            // 判斷是否全螢幕生效
-            const screenH = screen.height;
-            const windowH = window.innerHeight;
-            const bgReachesEdge = topVal > 0;
+            const bg = document.querySelector('.bg');
+            const bgRect = bg.getBoundingClientRect();
 
-            // 填入數值
-            document.getElementById('v-mode').textContent   = mode;
-            document.getElementById('v-top').textContent     = sat;
-            document.getElementById('v-bottom').textContent  = sab;
-            document.getElementById('v-window').textContent  = `${window.innerWidth} × ${windowH}`;
-            document.getElementById('v-screen').textContent  = `${screen.width} × ${screenH}`;
+            document.getElementById('v-mode').textContent = isPWA ? 'PWA (STANDALONE)' : 'SAFARI BROWSER';
+            document.getElementById('v-top').textContent = sat;
+            document.getElementById('v-bottom').textContent = sab;
+            document.getElementById('v-window').textContent = `${window.innerWidth} × ${window.innerHeight}`;
+            document.getElementById('v-screen').textContent = `${screen.width} × ${screen.height}`;
+            document.getElementById('v-bgsize').textContent = `${Math.round(bgRect.width)} × ${Math.round(bgRect.height)}`;
 
-            // 判斷背景是否延伸到安全區外
+            const bgCoversScreen = bgRect.height >= screen.height;
+            const gapEl = document.getElementById('v-gap');
             const status = document.getElementById('v-status');
-            const bgText = document.getElementById('v-bg');
 
-            if (bgReachesEdge) {
-                bgText.textContent  = '✅ YES';
-                status.textContent  = '✅ FULLSCREEN WORKING';
-                status.className    = 'status pass';
+            if (isPWA && topVal > 0 && bgCoversScreen) {
+                gapEl.textContent = '✅ YES';
+                status.textContent = '✅ FULLY COVERED';
+                status.className = 'status pass';
+            } else if (isPWA && topVal > 0) {
+                gapEl.textContent = '⚠️ BG TOO SHORT';
+                status.textContent = `⚠️ GAP: ${screen.height - Math.round(bgRect.height)}px`;
+                status.className = 'status fail';
             } else if (isPWA) {
-                bgText.textContent  = '⚠️ PARTIAL';
-                status.textContent  = '⚠️ PWA BUT NO SAFE AREA';
-                status.className    = 'status fail';
+                gapEl.textContent = '❌ NO SAFE AREA';
+                status.textContent = '❌ NOT WORKING';
+                status.className = 'status fail';
             } else {
-                bgText.textContent  = '❌ NO';
-                status.textContent  = '❌ NOT FULLSCREEN (expected in Safari)';
-                status.className    = 'status fail';
+                gapEl.textContent = '—';
+                status.textContent = '❌ NOT FULLSCREEN (Safari)';
+                status.className = 'status fail';
             }
         }
 
-        // 初始量測 + 持續更新
         measure();
         setInterval(measure, 1000);
 
-        // 防止 iOS 橡皮筋
         document.addEventListener('touchmove', e => {
             if (e.target.closest('.card')) return;
             e.preventDefault();
